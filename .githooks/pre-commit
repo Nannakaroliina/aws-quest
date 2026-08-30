@@ -6,7 +6,7 @@
 # staged (so committing docs or assets stays instant).
 
 changed=$(git diff --cached --name-only --diff-filter=ACMR)
-echo "$changed" | grep -Eq '\.(js|mjs|cjs|css|html|json)$' || exit 0
+echo "$changed" | grep -Eq '\.(js|mjs|cjs|ts|svelte|css|html|json)$' || exit 0
 
 if [ ! -d node_modules ]; then
   echo "pre-commit: node_modules missing — run 'npm install' (skipping checks)"

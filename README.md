@@ -4,23 +4,26 @@ A gamified way to learn AWS with an authentic 8-bit arcade feel — CRT scanline
 chiptune blips, a `Press Start 2P` overworld, and an RPG mentor who introduces
 every concept before you prove you understood it.
 
-## Play
+Built with **SvelteKit + TypeScript** and prerendered to a **static site**
+(`@sveltejs/adapter-static`): no server, no runtime data. Progress (XP, stars,
+badges, which deep dives you've read) is saved to `localStorage`.
 
-No build step, no dependencies. Just open the file:
-
-```bash
-open index.html
-```
-
-Or serve it (needed only if your browser blocks `file://` audio/fonts):
+## Run it
 
 ```bash
-python3 -m http.server 8777
-# then visit http://localhost:8777
+npm install
+npm run dev        # http://localhost:5173
 ```
 
-Progress (XP, stars, badges, which deep dives you've read) is saved to
-`localStorage`, so you can close the tab and come back.
+Build the static site and preview it:
+
+```bash
+npm run build      # -> ./build  (plain HTML/JS/CSS/assets)
+npm run preview
+```
+
+`./build` is fully static — serve it from any bucket, CDN, or
+`python3 -m http.server` inside the directory.
 
 ## How a level works
 
@@ -37,41 +40,12 @@ Each AWS concept is one "level" on the overworld map, played in a few beats:
    the mechanic: route packets out of a VPC, ride a demand curve with an Auto
    Scaling group, pick a DynamoDB partition key and watch it melt a partition,
    be the IAM policy engine, work an SQS queue with a poison message, and more.
-   Playing it once grants a small XP bonus.
-5. **Deep dive** _(optional)_ — how it actually works in practice: mechanism,
-   an ASCII architecture sketch, real-world tips, gotchas, the pricing model,
-   and a CLI snippet to try. Reading it once grants a small XP bonus.
+5. **Deep dive** _(optional)_ — how it actually works: mechanism, an ASCII
+   architecture sketch, real-world tips, gotchas, the pricing model, and a CLI
+   snippet to try.
 6. **Challenge** — 3 multiple-choice questions. All correct on the first try =
    3 stars. Clearing a level unlocks the next one in that world and awards a
    badge.
-
-### Build tasks
-
-Every concept has a hands-on setup task in
-[`src/builds.js`](src/builds.js) (`window.AWSQUEST_BUILDS`, keyed by concept
-id), rendered by `makeBuild()` in [`src/minigames.js`](src/minigames.js).
-Each is 6 configuration decisions on one resource — instance type, network
-placement, credentials, encryption, backups, scaling policy, and so on — where
-one option per slot is the production-correct choice. Options are shuffled per
-play; DEPLOY validates every slot and explains the right answer.
-
-### Mini-games
-
-Ten "inside the topic" sims live in [`src/minigames.js`](src/minigames.js),
-each registered on `window.AWSQUEST_MINIGAMES`:
-
-| Concept                | Sim                     | Teaches                                     |
-| ---------------------- | ----------------------- | ------------------------------------------- |
-| EC2 Auto Scaling       | Run the Scaler          | target tracking, headroom, scaling lag      |
-| Amazon VPC             | Route the Packets       | IGW vs NAT vs endpoint vs local route       |
-| Elastic Load Balancing | Man the Front Door      | ALB/NLB/GWLB, health checks, slow start     |
-| Amazon DynamoDB        | Pick the Partition Key  | key cardinality and hot partitions          |
-| S3 Storage Classes     | Tier the Bucket         | cost vs retrieval-time trade-off            |
-| AWS IAM                | Be the Policy Engine    | explicit deny, boundary ∩ SCP ∩ identity    |
-| AWS KMS                | Seal the Envelope       | ordering of envelope encryption             |
-| Amazon SQS             | Work the Queue          | visibility timeout, delete-or-reappear, DLQ |
-| Amazon EventBridge     | Match the Pattern       | event-pattern matching rules                |
-| AWS Step Functions     | Build the State Machine | Task / Choice / Parallel ordering           |
 
 ## Controls
 
@@ -86,18 +60,93 @@ each registered on `window.AWSQUEST_MINIGAMES`:
 Everything is clickable too. `M` mutes both the chiptune sound effects and the
 looping background music.
 
+## Project layout
+
+```
+src/
+  app.html                     SvelteKit shell (fonts, favicon)
+  app.css                      retro palette, pixel borders, CRT overlay, screen + sim CSS
+  routes/
+    +layout.svelte             CRT overlay + <audio id="bgm">, imports app.css
+    +layout.ts                 prerender = true, ssr = false; dev-time content validation
+    +page.svelte               mounts <Game />
+  lib/
+    components/Game.svelte      screen-shell markup; mounts the engine on load
+    game/
+      engine.ts                state machine, screens, input router  (createGame(root))
+      save.ts                   SaveState + localStorage load/persist
+      progression.ts            XP maths, unlock rules, nextConcept
+    content/
+      types.ts                 Concept / World / BuildSpec / … TypeScript types
+      worlds.ts                WORLDS, WORLD_CONCEPTS, PROGRESSION
+      concepts/<world>/<id>.ts  one file per concept
+      concepts/index.ts        assembles CONCEPTS
+      schema.ts                validateContent() — cross-checks TS can't
+      index.ts                 barrel: import from '$lib/content'
+    builds/index.ts            per-concept "provision it yourself" tasks (BUILDS)
+    minigames/
+      types.ts                 MinigameFactory / MinigameCtx / MinigameApi
+      make-quiz.ts, make-order.ts, make-build.ts   reusable builders
+      <game>.ts                one file per sim
+      registry.ts              MINIGAMES, keyed by the id a concept's sim.game names
+static/assets/bgm*.mp3         ElevenLabs Music chiptune loop (bgm.mp3 = active track)
+```
+
+> The `game/engine.ts` and `minigames/*` modules are imperative DOM code lifted
+> verbatim from the pre-SvelteKit build and carry `// @ts-nocheck`. They are
+> being rewritten as Svelte components screen by screen; their CSS moves into
+> each component's scoped `<style>` as that happens.
+
+## Adding content
+
+### A concept
+
+1. Create `src/lib/content/concepts/<world>/<id>.ts`:
+
+   ```ts
+   import type { Concept } from "../../types";
+
+   export const myservice: Concept = {
+     id: "myservice",
+     world: "compute",
+     name: "MY SERVICE",
+     sub: "…",
+     icon: "🛠️",
+     briefing: ["…"],
+     metaphor: "…",
+     points: ["…"],
+     deep: { works: ["…"], diagram: "…", practice: ["…"], gotchas: ["…"], pricing: "…", cli: "…" },
+     quiz: [{ q: "…", choices: ["…", "…"], answer: 0, why: "…" }],
+     badge: { name: "NAME", emoji: "🏅" },
+   };
+   ```
+
+2. Import and list it in `src/lib/content/concepts/index.ts`.
+3. Add its id to the right world in `src/lib/content/worlds.ts` (`WORLD_CONCEPTS`).
+4. Give it a build task — add `BUILDS['myservice']` in
+   `src/lib/builds/index.ts` (`{ label, blurb, resource, success, steps: [{ prompt,
+options[], correct, explain }] }`; options are shuffled at play time so
+   `correct` is an index into the authored order).
+
+`validateContent()` (run by `npm test` and again in `npm run dev`) will tell you
+if anything doesn't line up.
+
+### A mini-game
+
+Add `sim: { game, label, blurb }` to the concept, create
+`src/lib/minigames/<game>.ts`, and register it in
+`src/lib/minigames/registry.ts`. The `makeQuiz` (pick-the-answer rounds) and
+`makeOrder` (order N steps) builders cover most cases; bespoke sims implement
+`mount(root, ctx) -> { onKey, destroy }` directly.
+
 ## Music
 
-The background loop is an 8-bit chiptune track generated with **ElevenLabs Music**
-(`eleven_music_v2`, 50s instrumental). It starts on the first key/tap, loops on
-the title and map screens, and ducks to a lower volume inside a level so the
-briefing text reads clearly.
-
-Four variations were generated — `assets/bgm-1.mp3` … `assets/bgm-4.mp3`.
-`assets/bgm.mp3` is the one the game actually plays. To switch tracks:
+The background loop is an 8-bit chiptune track generated with **ElevenLabs
+Music**. Four variations live in `static/assets/bgm-1.mp3` … `bgm-4.mp3`;
+`static/assets/bgm.mp3` is the one the game plays. To switch:
 
 ```bash
-cp assets/bgm-3.mp3 assets/bgm.mp3
+cp static/assets/bgm-3.mp3 static/assets/bgm.mp3
 ```
 
 ## Worlds (28 concepts)
@@ -113,55 +162,22 @@ cp assets/bgm-3.mp3 assets/bgm.mp3
 
 Worlds are all open from the start; concepts within a world unlock in order.
 
-## Project layout
-
-```
-index.html            markup + screen shells
-styles.css            retro palette, pixel borders, CRT overlay, mini-game UI
-src/content.js        all learning content (worlds, concepts, deep dives, quizzes, sim refs)
-src/audio.js          WebAudio chiptune SFX engine + looping-music controller
-src/minigames.js      "inside the topic" sims + the makeBuild() engine
-src/builds.js         per-concept "provision it yourself" tasks (window.AWSQUEST_BUILDS)
-src/game.js           engine: state, screens, save system, input router
-scripts/check-syntax  node --check gate for every JS file
-assets/bgm*.mp3       ElevenLabs Music chiptune loop (bgm.mp3 = active track)
-```
-
-### Adding a concept
-
-Add a record to `CONCEPTS` in [`src/content.js`](src/content.js) following the
-schema documented at the top of that file, then list its id in
-`WORLD_CONCEPTS` for the world it belongs to. No other file needs to change.
-
-To give it a **build task**, add an entry to `window.AWSQUEST_BUILDS` in
-[`src/builds.js`](src/builds.js) keyed by the concept id:
-`{ label, blurb, resource, success, steps: [ { prompt, options[], correct,
-explain } ] }`. The card picks it up automatically.
-
-To give it a **mini-game**, add an optional `sim: { game, label, blurb }` to the
-record and register `game` in [`src/minigames.js`](src/minigames.js). The two
-builders there — `makeQuiz` (pick-the-answer rounds, with an optional
-`afterPick` visualisation) and `makeOrder` (put N steps in order) — cover most
-cases; bespoke sims implement `mount(root, ctx) -> { onKey, destroy }` directly.
-
 ## Development
 
-The game ships zero runtime dependencies. The only `node_modules` are dev
-tooling — [ESLint](https://eslint.org) and [Prettier](https://prettier.io):
-
 ```bash
-npm install        # one-time: install the dev toolchain
-npm run check      # syntax (node --check) + prettier --check + eslint
-npm run fix        # prettier --write + eslint --fix
+npm run dev          # dev server
+npm run check        # svelte-check + prettier --check + eslint + vitest  (the CI gate)
+npm run fix          # prettier --write + eslint --fix
+npm test             # vitest run
 ```
 
-| Script                 | What it does                                                                                                                                                                            |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run check:syntax` | `node --check` every file in `src/` and `scripts/`                                                                                                                                      |
-| `npm run lint`         | ESLint (flat config, `eslint.config.mjs`)                                                                                                                                               |
-| `npm run format:check` | Prettier — **config, docs and `index.html` only**; `src/**` and `styles.css` are `.prettierignore`d and kept in their compact hand-authored style (ESLint + `.editorconfig` guard them) |
-| `npm run check`        | all three, in order — the same gate CI runs                                                                                                                                             |
-| `npm test`             | alias for `npm run check`                                                                                                                                                               |
+| Script                 | What it does                                            |
+| ---------------------- | ------------------------------------------------------- |
+| `npm run check:types`  | `svelte-kit sync` + `svelte-check`                      |
+| `npm run lint`         | ESLint (flat config, `eslint.config.mjs`)               |
+| `npm run format:check` | Prettier — everything except build output               |
+| `npm test`             | Vitest: content schema, progression maths, quiz builder |
+| `npm run check`        | all of the above, in order — the same gate CI runs      |
 
 **Pre-commit hook** (opt-in): `git config core.hooksPath .githooks` runs
 `npm run check` before each commit that touches code. Bypass once with
@@ -171,15 +187,10 @@ npm run fix        # prettier --write + eslint --fix
 
 GitHub Actions in [`.github/workflows/`](.github/workflows/):
 
-- **`ci.yml`** — syntax + `prettier --check` + `eslint --max-warnings=0` on
+- **`ci.yml`** — `svelte-check` + `prettier --check` + `eslint` + `vitest` on
   every push and PR.
 - **`codeql.yml`** — CodeQL `security-and-quality` analysis (PR, push, weekly).
 - **`gitleaks.yml`** — secret scan over the full history and every diff.
 - **`dependency-review.yml`** — flags risky dependency changes on PRs;
   [`dependabot.yml`](.github/dependabot.yml) opens weekly update PRs for npm and
   Actions.
-
-[`.github/copilot-instructions.md`](.github/copilot-instructions.md) primes
-GitHub Copilot code review and the coding agent with the project's conventions.
-Turn on the Copilot PR auto-review toggle in the repo settings once the remote
-exists.

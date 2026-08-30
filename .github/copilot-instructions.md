@@ -4,59 +4,74 @@ Context for Copilot code review, Copilot Chat, and the Copilot coding agent.
 
 ## What this project is
 
-A single-page, retro 8-bit arcade game that teaches AWS concepts. It runs by
-opening `index.html` directly — **no build step, no bundler, no framework, and
-no runtime dependencies**. The only `node_modules` are dev tooling (ESLint,
-Prettier). Do not introduce a build system or a runtime dependency; if a change
-seems to need one, flag it instead.
+A retro 8-bit arcade game that teaches AWS concepts, built with **SvelteKit +
+TypeScript** and prerendered to a **static site** (`@sveltejs/adapter-static`).
+No backend, no runtime data — progress is saved to `localStorage`. `npm run
+build` emits `./build` as plain static files.
+
+The migration from the old zero-build `<script>` version is a **strangler**:
+`src/lib/game/engine.ts` and `src/lib/minigames/*` are imperative DOM code
+lifted verbatim and carried behind `// @ts-nocheck`; they are being rewritten as
+Svelte components screen by screen, and their CSS moves into scoped `<style>`
+blocks as that happens. New code is ordinary strict TypeScript / Svelte 5.
 
 ## Layout
 
-| Path                       | Role                                                                                                   |
-| -------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `index.html`               | screen shells, loads the scripts in order                                                              |
-| `styles.css`               | retro palette, pixel borders, CRT overlay, all component CSS                                           |
-| `src/content.js`           | learning content — worlds, concepts, deep dives, quizzes. Schema is documented at the top of the file. |
-| `src/builds.js`            | per-concept "provision it yourself" tasks (`window.AWSQUEST_BUILDS`)                                   |
-| `src/minigames.js`         | "inside the topic" sims + the `makeBuild()` engine                                                     |
-| `src/audio.js`             | WebAudio chiptune SFX + looping-music controller                                                       |
-| `src/game.js`              | engine: state machine, screens, save system, input router                                              |
-| `scripts/check-syntax.mjs` | `node --check` gate                                                                                    |
+| Path                             | Role                                                               |
+| -------------------------------- | ------------------------------------------------------------------ |
+| `src/app.html` / `src/app.css`   | SvelteKit shell; global retro CSS (palette, CRT, screens)          |
+| `src/routes/+layout.svelte/.ts`  | CRT overlay + `<audio id="bgm">`; `prerender`, `ssr=false`         |
+| `src/lib/components/Game.svelte` | screen-shell markup; mounts the engine in `onMount`                |
+| `src/lib/game/engine.ts`         | state machine, screens, save, input router (`createGame`)          |
+| `src/lib/game/save.ts`           | `SaveState` + localStorage load/persist                            |
+| `src/lib/game/progression.ts`    | XP maths, unlock rules, `nextConcept` (pure)                       |
+| `src/lib/content/`               | typed content: `types.ts`, `worlds.ts`, `concepts/**`, `schema.ts` |
+| `src/lib/builds/index.ts`        | per-concept "provision it yourself" tasks (`BUILDS`)               |
+| `src/lib/minigames/`             | sims + `make-quiz/order/build` builders + `registry.ts`            |
 
-Scripts load as plain classic `<script>`s and communicate through globals on
-`window` (`AWSQUEST_CONTENT`, `AWSQUEST_SOUND`, `AWSQUEST_MINIGAMES`,
-`AWSQUEST_BUILD`, `AWSQUEST_BUILDS`). Each file is an IIFE or a top-level script,
-**not** an ES module. Keep it that way.
+Modules communicate through ES imports (`$lib/...`), not `window` globals.
+Import content from `$lib/content`, sims from `$lib/minigames`.
 
 ## Conventions
 
-- Vanilla ES2022. 2-space indent, single quotes, semicolons, `const`/`let` (never
-  `var`). Prettier + ESLint are the source of truth: `npm run check` must pass,
-  and `npm run fix` auto-applies both.
-- Escape any user-or-content string interpolated into `innerHTML` with the local
-  `esc()` helper. No exceptions — that is the app's XSS boundary.
-- Every interaction must work with **both keyboard and pointer**. New sims/stages
-  return `{ onKey, destroy }` and clean up their own timers in `destroy()`.
-- Respect `prefers-reduced-motion` (already honored in CSS for CRT/blink).
-- Keep the aesthetic: `Press Start 2P`, the existing CSS variables, chiptune
-  SFX via `AWSQUEST_SOUND`. No new fonts or asset hosts.
+- TypeScript strict. 2-space indent, single quotes, semicolons. Prettier +
+  ESLint are the source of truth: `npm run check` must pass, `npm run fix`
+  auto-applies both.
+- `@ts-nocheck` is allowed **only** in `src/lib/game/engine.ts` and
+  `src/lib/minigames/**` (the transitional imperative code). Do not add it
+  elsewhere.
+- Escape any content string interpolated into `innerHTML` with the local `esc()`
+  helper (`src/lib/minigames/helpers.ts` / the engine's own). That is the app's
+  XSS boundary.
+- Every interaction works with **both keyboard and pointer**. Sims/stages return
+  `{ onKey, destroy }` and clear their own timers in `destroy()`.
+- Respect `prefers-reduced-motion` (already honored in `app.css`).
+- Keep the aesthetic: `Press Start 2P`, the existing CSS variables, chiptune SFX
+  via `$lib/audio/sound`. No new fonts or asset hosts.
 
 ## Adding content
 
-- **Concept:** add a record to `CONCEPTS` in `src/content.js` per the header
-  schema, then list its id in `WORLD_CONCEPTS`.
-- **Build task:** add an entry to `AWSQUEST_BUILDS` in `src/builds.js` keyed by
-  concept id: `{ label, blurb, resource, success, steps: [{ prompt, options[],
-correct, explain }] }`. Options are shuffled at runtime, so `correct` is an
-  index into the authored order.
-- **Mini-game:** add `sim: { game, label, blurb }` to the concept and register
-  `game` in `src/minigames.js` (prefer the `makeQuiz` / `makeOrder` builders).
+- **Concept:** new `src/lib/content/concepts/<world>/<id>.ts` exporting a
+  `Concept`; import it in `concepts/index.ts`; add its id to `WORLD_CONCEPTS` in
+  `worlds.ts`.
+- **Build task:** add `BUILDS['<id>']` in `src/lib/builds/index.ts`
+  (`{ label, blurb, resource, success, steps: [{ prompt, options[], correct,
+explain }] }`; `correct` indexes the authored order — options shuffle at play
+  time).
+- **Mini-game:** add `sim: { game, label, blurb }` to the concept, create
+  `src/lib/minigames/<game>.ts`, register it in `registry.ts` (prefer `makeQuiz`
+  / `makeOrder`).
+- `validateContent()` (`src/lib/content/schema.ts`) enforces the cross-links; it
+  runs in `npm test` and in `npm run dev`.
 
 ## Review focus
 
-- Correctness of the state machine in `src/game.js` (stage transitions, input
-  routing, `save` shape and persistence).
+- Correctness of the `engine.ts` state machine (stage transitions, input
+  routing, `SaveState` shape and persistence — the `SAVE_KEY` must not change).
 - No unescaped interpolation into `innerHTML`.
 - Timers/intervals always cleared on `destroy()` / `leaveLevel()`.
-- Technical accuracy of AWS statements in content and `explain` strings.
+- Content passes `validateContent()`; technical accuracy of AWS statements in
+  concept text and `explain` strings.
+- New/converted Svelte components use scoped `<style>`, not additions to
+  `app.css`.
 - Diffs stay scoped — don't reformat untouched code.

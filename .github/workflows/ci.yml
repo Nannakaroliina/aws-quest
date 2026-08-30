@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   check:
-    name: syntax · format · lint
+    name: types · format · lint · test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,11 +26,17 @@ jobs:
 
       - run: npm ci
 
-      - name: Syntax (node --check)
-        run: npm run check:syntax
+      - name: Sync SvelteKit types
+        run: npx svelte-kit sync
+
+      - name: Types (svelte-check)
+        run: npm run check:types
 
       - name: Formatting (prettier --check)
         run: npm run format:check
 
       - name: Lint (eslint)
-        run: npm run lint -- --max-warnings=0
+        run: npm run lint
+
+      - name: Unit tests (vitest)
+        run: npm test

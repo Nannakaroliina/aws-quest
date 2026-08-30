@@ -1,57 +1,63 @@
 import js from '@eslint/js';
-import globals from 'globals';
 import prettier from 'eslint-config-prettier';
+import svelte from 'eslint-plugin-svelte';
+import globals from 'globals';
+import ts from 'typescript-eslint';
+import svelteConfig from './svelte.config.js';
 
 /**
- * Flat config. The game code in src/ is plain browser <script> files (IIFEs
- * that hang modules off window.AWSQUEST_*), not ES modules — so sourceType is
- * "script" there. Tooling files are real ESM/CJS Node.
+ * Flat config. TypeScript + Svelte 5. The transitional engine / mini-game
+ * modules carry `// @ts-nocheck` and lean on browser DOM globals; the rest is
+ * ordinary strict TS. Prettier owns formatting, so it stays last.
  */
-export default [
+export default ts.config(
   {
-    ignores: ['node_modules/**', 'assets/**', 'package-lock.json'],
+    ignores: ['build/', '.svelte-kit/', 'node_modules/', 'static/', 'coverage/'],
   },
 
   js.configs.recommended,
+  ...ts.configs.recommended,
+  ...svelte.configs['flat/recommended'],
+  prettier,
+  ...svelte.configs['flat/prettier'],
 
   {
-    files: ['src/**/*.js'],
     languageOptions: {
-      ecmaVersion: 2022,
-      sourceType: 'script',
-      globals: {
-        ...globals.browser,
-        // cross-file singletons attached to window by the game's own scripts
-        AWSQUEST_CONTENT: 'writable',
-        AWSQUEST_SOUND: 'writable',
-        AWSQUEST_MINIGAMES: 'writable',
-        AWSQUEST_BUILD: 'writable',
-        AWSQUEST_BUILDS: 'writable',
-      },
+      globals: { ...globals.browser, ...globals.node },
     },
     rules: {
-      'no-var': 'error',
-      'prefer-const': 'warn',
-      eqeqeq: ['warn', 'smart'],
-      'no-unused-vars': [
+      'no-console': 'off',
+      '@typescript-eslint/no-unused-vars': [
         'warn',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_', caughtErrors: 'none' },
       ],
-      'no-empty': ['error', { allowEmptyCatch: true }],
-      'no-implicit-globals': 'error',
-      'no-console': 'off',
     },
   },
 
   {
-    files: ['scripts/**/*.{js,mjs,cjs}', 'eslint.config.mjs'],
+    files: ['**/*.svelte', '**/*.svelte.ts', '**/*.svelte.js'],
     languageOptions: {
-      ecmaVersion: 2022,
-      sourceType: 'module',
-      globals: { ...globals.node },
+      parserOptions: {
+        projectService: true,
+        extraFileExtensions: ['.svelte'],
+        parser: ts.parser,
+        svelteConfig,
+      },
     },
   },
 
-  // must stay last: turns off rules that would fight Prettier
-  prettier,
-];
+  {
+    // Ported imperative code: kept verbatim from the pre-SvelteKit build and
+    // carried behind `// @ts-nocheck` until each screen/sim becomes a Svelte
+    // component. Relax the rules that only fight that transitional style.
+    files: ['src/lib/game/engine.ts', 'src/lib/minigames/**/*.ts'],
+    rules: {
+      '@typescript-eslint/ban-ts-comment': ['error', { 'ts-nocheck': false }],
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-expressions': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      'no-empty': ['error', { allowEmptyCatch: true }],
+      'no-cond-assign': 'off',
+    },
+  },
+);

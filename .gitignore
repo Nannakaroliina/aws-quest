@@ -1,6 +1,20 @@
 # dependencies
 node_modules/
 
+# secrets / local env
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+.npmrc
+.netrc
+
+# SvelteKit / Vite build output
+.svelte-kit/
+build/
+.vite/
+
 # tool caches / output
 .eslintcache
 .prettiercache

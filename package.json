@@ -1,0 +1,28 @@
+{
+  "name": "aws-quest",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A retro 8-bit arcade game for learning AWS concepts. No build step, no runtime dependencies.",
+  "license": "UNLICENSED",
+  "type": "commonjs",
+  "scripts": {
+    "check:syntax": "node scripts/check-syntax.mjs",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "npm run check:syntax && npm run format:check && npm run lint",
+    "fix": "npm run format && npm run lint:fix",
+    "test": "npm run check"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.11.0",
+    "prettier": "^3.9.6"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

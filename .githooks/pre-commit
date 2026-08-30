@@ -1,0 +1,22 @@
+#!/bin/sh
+# Repo-local pre-commit gate. Enable once with:
+#   git config core.hooksPath .githooks
+#
+# Runs the same checks CI does, but only when JS / config / style files are
+# staged (so committing docs or assets stays instant).
+
+changed=$(git diff --cached --name-only --diff-filter=ACMR)
+echo "$changed" | grep -Eq '\.(js|mjs|cjs|css|html|json)$' || exit 0
+
+if [ ! -d node_modules ]; then
+  echo "pre-commit: node_modules missing — run 'npm install' (skipping checks)"
+  exit 0
+fi
+
+echo "pre-commit: npm run check"
+npm run check || {
+  echo
+  echo "pre-commit: checks failed. Fix, or run 'npm run fix', then re-commit."
+  echo "            (bypass once with: git commit --no-verify)"
+  exit 1
+}

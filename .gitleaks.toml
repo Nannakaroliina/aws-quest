@@ -1,0 +1,10 @@
+# Extends gitleaks' built-in ruleset. See https://github.com/gitleaks/gitleaks
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Files that never contain secrets in this repo"
+paths = [
+  '''assets/.*''',
+  '''package-lock\.json''',
+]

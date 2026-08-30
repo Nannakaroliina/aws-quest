@@ -1,0 +1,10 @@
+node_modules/
+assets/
+package-lock.json
+CHANGELOG.md
+
+# Hand-authored in a deliberately compact style. Formatting-checked by
+# EditorConfig + ESLint instead of Prettier so the content records and the
+# CSS stay dense and readable. See .github/copilot-instructions.md.
+src/
+styles.css

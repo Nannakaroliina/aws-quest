@@ -3,7 +3,6 @@ import prettier from 'eslint-config-prettier';
 import svelte from 'eslint-plugin-svelte';
 import globals from 'globals';
 import ts from 'typescript-eslint';
-import svelteConfig from './svelte.config.js';
 
 /**
  * Flat config. TypeScript + Svelte 5. The transitional engine / mini-game
@@ -41,7 +40,6 @@ export default ts.config(
         projectService: true,
         extraFileExtensions: ['.svelte'],
         parser: ts.parser,
-        svelteConfig,
       },
     },
   },

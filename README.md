@@ -82,7 +82,7 @@ src/
       concepts/<world>/<id>.ts  one file per concept
       concepts/index.ts        assembles CONCEPTS
       schema.ts                validateContent() — cross-checks TS can't
-      index.ts                 barrel: import from '$lib/content'
+      index.ts                 barrel: import from '#lib/content/index.ts'
     builds/index.ts            per-concept "provision it yourself" tasks (BUILDS)
     minigames/
       types.ts                 MinigameFactory / MinigameCtx / MinigameApi

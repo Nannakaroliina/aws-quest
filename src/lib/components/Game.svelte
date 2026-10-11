@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { createGame, type GameHandle } from '$lib/game/engine';
+  import { createGame, type GameHandle } from '#lib/game/engine.ts';
 
   let root: HTMLDivElement;
   let game: GameHandle | undefined;

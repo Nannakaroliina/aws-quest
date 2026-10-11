@@ -29,8 +29,9 @@ blocks as that happens. New code is ordinary strict TypeScript / Svelte 5.
 | `src/lib/builds/index.ts`        | per-concept "provision it yourself" tasks (`BUILDS`)               |
 | `src/lib/minigames/`             | sims + `make-quiz/order/build` builders + `registry.ts`            |
 
-Modules communicate through ES imports (`$lib/...`), not `window` globals.
-Import content from `$lib/content`, sims from `$lib/minigames`.
+Modules communicate through ES imports (`#lib/...` subpath imports with explicit
+file extensions, e.g. `#lib/game/engine.ts`), not `window` globals.
+Import content from `#lib/content/index.ts`, sims from `#lib/minigames/index.ts`.
 
 ## Conventions
 
@@ -47,7 +48,7 @@ Import content from `$lib/content`, sims from `$lib/minigames`.
   `{ onKey, destroy }` and clear their own timers in `destroy()`.
 - Respect `prefers-reduced-motion` (already honored in `app.css`).
 - Keep the aesthetic: `Press Start 2P`, the existing CSS variables, chiptune SFX
-  via `$lib/audio/sound`. No new fonts or asset hosts.
+  via `#lib/audio/sound.ts`. No new fonts or asset hosts.
 
 ## Adding content
 

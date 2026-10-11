@@ -1,5 +1,5 @@
-import { dev } from '$app/environment';
-import { validateContent } from '$lib/content';
+import { dev } from '$app/env';
+import { validateContent } from '#lib/content/index.ts';
 
 // AWS QUEST is a client-only game (localStorage, WebAudio). Prerender the
 // shell to static HTML; do not SSR.
